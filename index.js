@@ -164,45 +164,38 @@ if (hexo.config.mermaid.enable) {
                 
                 str = str.replace(/<pre[^>]*><code[^>]*class="[^"]*language-(MERMAID_BASE64_\d+)[^"]*">([\s\S]*?)<\/code><\/pre>/g, (match, id, encodedContent) => {
                     const stored = base64Store.get(id);
+                    if (!stored) {
+                        debugLog(`[Mermaid] Block ${id} not found in store`);
+                        return match;
+                    }
                     
-                    // Test: Log original encoded content to check for &#x2F;
-                    debugLog(`[Mermaid] Original encoded content: ${encodedContent.substring(0, 100)}...`);
-                    debugLog(`[Mermaid] Contains &#x2F;: ${encodedContent.includes('&#x2F;')}`);
-                    debugLog(`[Mermaid] Contains &#x2f;: ${encodedContent.includes('&#x2f;')}`);
-                    
+                    // Decode HTML entities properly
                     const decoded = encodedContent
                         .replace(/&lt;/g, '<')
                         .replace(/&gt;/g, '>')
-                        .replace(/&amp;/g, '&')
                         .replace(/&quot;/g, '"')
                         .replace(/&#39;/g, "'")
-                        .replace(/&#x3D;/g, '=')
-                        .replace(/&#x2F;/g, '/')
-                        .replace(/&#x2f;/gi, '/')
-                        .replace(/&#x2B;/g, '+')
-                        .replace(/&#x20;/g, ' ')
-                        .replace(/&#x0A;/g, '\n')
+                        .replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+                        .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)))
+                        .replace(/&amp;/g, '&')
                         .replace(/\s+/g, '')
                         .trim();
-                    const storedNormalized = stored ? stored.trim() : '';
                     
-                    // Enhanced debugging
-                    debugLog(`[Mermaid] Found ${id}: stored=${storedNormalized.length}, decoded=${decoded.length}`);
-                    debugLog(`[Mermaid] Length match: ${storedNormalized.length === decoded.length}`);
-                    debugLog(`[Mermaid] Content match: ${storedNormalized === decoded}`);
+                    debugLog(`[Mermaid] Processing ${id}: stored=${stored.length}, decoded=${decoded.length}`);
                     
-                    if (storedNormalized.length !== decoded.length) {
-                        debugLog(`[Mermaid] Length mismatch - stored: '${storedNormalized.substring(0, 50)}...'`);
-                        debugLog(`[Mermaid] Length mismatch - decoded: '${decoded.substring(0, 50)}...'`);
-                    }
-                    
-                    if (stored && storedNormalized === decoded) {
+                    if (stored === decoded) {
                         const decodedContent = Buffer.from(stored, 'base64').toString('utf8');
                         debugLog(`[Mermaid] Successfully decoded block ${id}`);
-                        return `<div class="mermaid">${decodedContent}</div>`;
+                        
+                        if (hexo.config.mermaid.render_mode === 'live') {
+                            return `<div class="mermaid">${decodedContent}</div>`;
+                        } else {
+                            const builder = require('./builder');
+                            return builder(decodedContent, hexo.config.mermaid.controls, hexo.config.mermaid.diagramDraggable, hexo.config.mermaid.width, hexo.config.mermaid.debug);
+                        }
                     }
                     
-                    debugLog(`[Mermaid] Block ${id} not found or content mismatch`);
+                    debugLog(`[Mermaid] Content mismatch for ${id}`);
                     return match;
                 });
             }
