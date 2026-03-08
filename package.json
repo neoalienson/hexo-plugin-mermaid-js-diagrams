@@ -14,10 +14,8 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "puppeteer": "^21.0.0"
-  },
   "devDependencies": {
+    "jsdom": "^28.1.0",
     "mocha": "^10.8.2"
   }
 }

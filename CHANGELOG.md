@@ -72,8 +72,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Filter priority now reads from config (default: 0)
 
-## [0.0.5]
-
-### Changed
-- Upgraded to Mermaid 10.9.1
-- Added support for puppeteer and live render modes

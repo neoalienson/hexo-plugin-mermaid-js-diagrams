@@ -17,18 +17,8 @@ let base64Counter = 0;
 
 hexo.config.mermaid = Object.assign({
     enable: true,
-    render_mode: 'puppeteer',
     theme: 'default',
     js_url: 'https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js',
-    puppeteerConfig: { 
-        args: ['--disable-setuid-sandbox', '--no-sandbox'],
-        dumpio: true 
-    },
-    defaultViewport:{
-        width: 2048,
-        height: 1024,
-    },
-    backgroundColor: 'white',
     priority: 0,
     controls: {
         enable: true,
@@ -45,18 +35,14 @@ hexo.config.mermaid = Object.assign({
     markdown: false
 }, hexo.config.mermaid);
 
-debugLog('[Mermaid Plugin] Loaded - enable:', hexo.config.mermaid.enable, 'debug:', hexo.config.mermaid.debug, 'markdown:', hexo.config.mermaid.markdown, 'render_mode:', hexo.config.mermaid.render_mode);
+debugLog('[Mermaid Plugin] Loaded - enable:', hexo.config.mermaid.enable, 'debug:', hexo.config.mermaid.debug, 'markdown:', hexo.config.mermaid.markdown);
 
 global.hexo = Object.assign(hexo,global.hexo)
 
 if (hexo.config.mermaid.enable) {
     debugLog('[Mermaid Plugin] Registering filters and tags...');
-    const path = require('path');
-    const fs = require('fs');
-    const builder = require('./builder');
     
-    if (hexo.config.mermaid.render_mode === 'live') {
-        hexo.extend.filter.register('after_generate', function() {
+    hexo.extend.filter.register('after_generate', function() {
             const route = hexo.route;
             const routeList = route.list();
             const routes = routeList.filter(hpath => hpath.endsWith('.html'));
@@ -106,16 +92,12 @@ if (hexo.config.mermaid.enable) {
                 }
             });
         }, hexo.config.mermaid.priority);
-    }
     
     hexo.extend.tag.register('mermaid',(arg,content)=>{
-        if (hexo.config.mermaid.render_mode === 'live') {
-            const id = `MERMAID_PLACEHOLDER_${mermaidCounter++}`;
-            mermaidStore.set(id, content);
-            return `<!--${id}-->`;
-        }
-        return builder(content, hexo.config.mermaid.controls, hexo.config.mermaid.diagramDraggable, hexo.config.mermaid.width, hexo.config.mermaid.debug);
-    } , { async: true,ends: true });
+        const id = `MERMAID_PLACEHOLDER_${mermaidCounter++}`;
+        mermaidStore.set(id, content);
+        return `<!--${id}-->`;
+    } , { async: false,ends: true });
 
     if (hexo.config.mermaid.markdown) {
         // Encode mermaid blocks as base64 before markdown rendering
@@ -187,12 +169,7 @@ if (hexo.config.mermaid.enable) {
                         const decodedContent = Buffer.from(stored, 'base64').toString('utf8');
                         debugLog(`[Mermaid] Successfully decoded block ${id}`);
                         
-                        if (hexo.config.mermaid.render_mode === 'live') {
-                            return `<div class="mermaid">${decodedContent}</div>`;
-                        } else {
-                            const builder = require('./builder');
-                            return builder(decodedContent, hexo.config.mermaid.controls, hexo.config.mermaid.diagramDraggable, hexo.config.mermaid.width, hexo.config.mermaid.debug);
-                        }
+                        return `<div class="mermaid">${decodedContent}</div>`;
                     }
                     
                     debugLog(`[Mermaid] Content mismatch for ${id}`);
@@ -203,8 +180,7 @@ if (hexo.config.mermaid.enable) {
         }, hexo.config.mermaid.priority + 1);
     }
     
-    if (hexo.config.mermaid.render_mode === 'live') {
-        hexo.extend.filter.register('after_render:html', function(str, data) {
+    hexo.extend.filter.register('after_render:html', function(str, data) {
             const before = str;
             str = str.replace(/<!--(MERMAID_PLACEHOLDER_\d+)-->/g, (match, id) => {
                 const content = mermaidStore.get(id);
@@ -219,6 +195,5 @@ if (hexo.config.mermaid.enable) {
             }
             return str;
         }, 100);
-    }
 
 }
